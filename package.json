@@ -10,10 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@blueprintjs/core": "^5.16.2",
     "@types/mapbox-gl": "^3.4.1",
     "deck.gl": "^9.0.38",
     "h3-js": "^4.1.0",
     "mapbox-gl": "^3.9.2",
+    "mjolnir.js": "^2.7.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-map-gl": "^7.1.8"
