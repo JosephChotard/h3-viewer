@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { isNotNull, throttle } from "./utils";
 
-type OurViewState = {
+export type OurViewState = {
     width: number;
     height: number;
 } & MapViewState;
@@ -87,7 +87,7 @@ const boundsToPolygon = ({ minLat, minLon, maxLat, maxLon }: Bounds) => [
     [minLon, minLat],
 ];
 
-const ZOOM_TO_RESOLUTION: Record<number, number> = {
+export const ZOOM_TO_RESOLUTION: Record<number, number> = {
     0: 0,
     1: 0,
     2: 1,
@@ -110,6 +110,8 @@ const ZOOM_TO_RESOLUTION: Record<number, number> = {
     19: 13,
     20: 14,
 };
+
+export const RESOLUTION_TO_ZOOM: Record<number, number> = Object.entries(ZOOM_TO_RESOLUTION).reduce((acc, [k, v]) => ({ ...acc, [v]: +k }), {});
 
 const getHexagons = (bounds: Bounds, resolution: number) => {
     const all_bounds = splitPolygon(bounds);
