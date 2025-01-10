@@ -2,7 +2,8 @@ export const isNotNull = <T>(value: T): value is NonNullable<T> => {
     return value != null;
 };
 
-export const throttle = (fn: (...args: unknown[]) => void, wait: number = 300) => {
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+export const throttle = (fn: Function, wait: number = 300) => {
     let inThrottle: boolean,
         lastFn: ReturnType<typeof setTimeout>,
         lastTime: number;

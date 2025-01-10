@@ -63,11 +63,11 @@ function splitLongitudeRange(
 
     let curPos = minLon;
 
-    let adjustedMax = adjustLongitude(maxLon);
+    const adjustedMax = adjustLongitude(maxLon);
 
     while (curPos < maxLon) {
-        let normalized = adjustLongitude(curPos);
-        let next = normalized < 0 ? 0 : 180;
+        const normalized = adjustLongitude(curPos);
+        const next = normalized < 0 ? 0 : 180;
         curPos = curPos + next - normalized;
         if (curPos > maxLon) {
             result.push([normalized, adjustedMax]);
@@ -129,7 +129,7 @@ const getHexagons = (bounds: Bounds, resolution: number) => {
 }
 
 export const useHex = () => {
-    const [selectedHexes, setSelectedHexes] = useState<Set<String>>(new Set());
+    const [selectedHexes, setSelectedHexes] = useState<Set<string>>(new Set());
     const [hexagons, setHexagons] = useState<string[]>([]);
     const [resolution, setResolution] = useState<number>(0);
     const [hexLayer, setHexLayer] = useState<H3HexagonLayer<string> | null>(
@@ -161,6 +161,7 @@ export const useHex = () => {
         );
     }, [selectedHexes, setSelectedHexes, hexagons])
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleResize = useCallback(
         throttle((viewState: OurViewState) => {
             const zoom = viewState.zoom;
@@ -170,7 +171,7 @@ export const useHex = () => {
             const hexagons = getHexagons(bounds, resolution);
             setHexagons(hexagons);
         }, 300),
-        [setHexLayer, selectedHexes, setSelectedHexes, setResolution]
+        [setHexagons, setResolution]
     );
 
     return { handleResize, hexLayer, selectedHexes, setSelectedHexes, resolution };
