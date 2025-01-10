@@ -1,7 +1,12 @@
 import { FormGroup, Slider, TagInput } from "@blueprintjs/core";
 import DeckGL from "@deck.gl/react";
 import { MapView } from "deck.gl";
-import { cellToLatLng, getResolution, isValidCell } from "h3-js";
+import {
+    cellToLatLng,
+    getResolution,
+    isValidCell,
+    splitLongToH3Index,
+} from "h3-js";
 import { useCallback, useEffect, useState } from "react";
 import { Map } from "react-map-gl";
 import "./App.css";
@@ -10,19 +15,68 @@ import { isNotNull } from "./utils";
 
 const getH3Center = (hexes: string[]) => {
     const latLngs = hexes.map(cellToLatLng);
-    const lats = latLngs.map(([lat, _]) => lat);
-    const lngs = latLngs.map(([_, lng]) => lng);
+    const lats = latLngs.map(([lat]) => lat);
+    const lngs = latLngs.map(([, lng]) => lng);
     const centerLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
     const centerLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
     return [centerLat, centerLng];
 };
 
-const getAverageResolution = (hexes: string[]) => {
+function split64BitNumber(numberStr: string): [number, number] {
+    const bigIntNumber = BigInt(numberStr);
+    const mask32Bits = BigInt(0xffffffff);
+
+    const lower = Number(bigIntNumber & mask32Bits);
+    const upper = Number((bigIntNumber >> BigInt(32)) & mask32Bits);
+
+    return [lower, upper];
+}
+
+function isBigIntString(str: string): boolean {
+    try {
+        BigInt(str);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function toCells(str: string): (string | undefined)[] | undefined {
+    str = str.trim();
+    if (isValidCell(str)) {
+        return [str];
+    }
+    if (isBigIntString(str)) {
+        const [lower, upper] = split64BitNumber(str);
+        const index = splitLongToH3Index(lower, upper);
+        if (isValidCell(index)) {
+            return [index];
+        }
+    }
+    if (str.includes(",")) {
+        return str.split(",").flatMap(toCells);
+    }
+    if (str.startsWith("[")) {
+        return toCells(str.slice(1));
+    }
+    if (str.endsWith("]")) {
+        return toCells(str.slice(0, -1));
+    }
+    // Check if json
+    try {
+        const parsed = JSON.parse(str);
+        if (Array.isArray(parsed)) {
+            return parsed.flatMap(toCells);
+        }
+    } catch {
+        return undefined;
+    }
+    return undefined;
+}
+
+const getMinResolution = (hexes: string[]) => {
     const resolutions = hexes.map(getResolution);
-    return Math.floor(
-        resolutions.reduce((sum, resolution) => sum + resolution, 0) /
-            resolutions.length
-    );
+    return Math.min(...resolutions);
 };
 
 function App() {
@@ -55,8 +109,10 @@ function App() {
                 values
                     .filter(isNotNull)
                     .map((value) => value.toString())
-                    .filter(isValidCell)
+                    .flatMap(toCells)
+                    .filter(isNotNull)
             );
+            console.log(new_hexes);
             setSelectedHexes(new_hexes);
             if (new_hexes.size === 0) {
                 return;
@@ -66,7 +122,7 @@ function App() {
                 ...prev,
                 longitude: centerLng,
                 latitude: centerLat,
-                zoom: RESOLUTION_TO_ZOOM[getAverageResolution([...new_hexes])],
+                zoom: RESOLUTION_TO_ZOOM[getMinResolution([...new_hexes])],
             }));
         },
         [setSelectedHexes, setViewState]
@@ -80,7 +136,8 @@ function App() {
         <div className="root">
             <DeckGL
                 onViewStateChange={({ viewState }) =>
-                    setViewState(viewState as any as OurViewState)
+                    // This is stupid and I'm sure there's a better way to do this. I cba to figure out
+                    setViewState(viewState as unknown as OurViewState)
                 }
                 viewState={viewState}
                 controller
