@@ -1,4 +1,4 @@
-import { FormGroup, Slider, TagInput } from "@blueprintjs/core";
+import { FormGroup, Slider, Switch, TagInput } from "@blueprintjs/core";
 import DeckGL from "@deck.gl/react";
 import { MapView } from "deck.gl";
 import {
@@ -80,6 +80,7 @@ const getMinResolution = (hexes: string[]) => {
 };
 
 function App() {
+    const [resolutionFrozen, setResolutionFrozen] = useState(false);
     const [viewState, setViewState] = useState<OurViewState>({
         width: 1734,
         height: 1318,
@@ -101,7 +102,7 @@ function App() {
         selectedHexes,
         setSelectedHexes,
         resolution,
-    } = useHex();
+    } = useHex({ resolutionFrozen });
 
     const handleHexInputChange = useCallback(
         (values: React.ReactNode[]) => {
@@ -169,6 +170,14 @@ function App() {
                         placeholder="Separate values with commas..."
                         values={[...selectedHexes]}
                     />
+                </FormGroup>
+                <FormGroup>
+                    <Switch
+                        checked={resolutionFrozen}
+                        onChange={() => setResolutionFrozen((f) => !f)}
+                    >
+                        Freeze resolution
+                    </Switch>
                 </FormGroup>
             </div>
         </div>

@@ -128,7 +128,11 @@ const getHexagons = (bounds: Bounds, resolution: number) => {
     return hexagons
 }
 
-export const useHex = () => {
+export interface UseHexProps {
+    resolutionFrozen: boolean;
+}
+
+export const useHex = ({ resolutionFrozen }: UseHexProps) => {
     const [selectedHexes, setSelectedHexes] = useState<Set<string>>(new Set());
     const [hexagons, setHexagons] = useState<string[]>([]);
     const [resolution, setResolution] = useState<number>(0);
@@ -164,6 +168,9 @@ export const useHex = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleResize = useCallback(
         throttle((viewState: OurViewState) => {
+            if (resolutionFrozen) {
+                return
+            }
             const zoom = viewState.zoom;
             const resolution = ZOOM_TO_RESOLUTION[Math.round(zoom)];
             setResolution(resolution)
@@ -171,7 +178,7 @@ export const useHex = () => {
             const hexagons = getHexagons(bounds, resolution);
             setHexagons(hexagons);
         }, 300),
-        [setHexagons, setResolution]
+        [setHexagons, setResolution, resolutionFrozen]
     );
 
     return { handleResize, hexLayer, selectedHexes, setSelectedHexes, resolution };
