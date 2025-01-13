@@ -13,25 +13,52 @@ import "./App.css";
 import { OurViewState, RESOLUTION_TO_ZOOM, useHex } from "./useHex";
 import { getH3Center, getMinResolution, isNotNull, toCells } from "./utils";
 
+const INITIAL_VIEW_STATE: OurViewState = {
+    width: 1734,
+    height: 1318,
+    latitude: 37.635849802603865,
+    longitude: -35.383059547989724,
+    zoom: 2.415529236018404,
+    bearing: 0,
+    pitch: 0,
+    maxZoom: 20,
+    minZoom: 0,
+    maxPitch: 60,
+    minPitch: 0,
+    position: [0, 0, 0],
+};
+
 function App() {
     const [resolutionFrozen, setResolutionFrozen] = useState(false);
-    const [viewState, setViewState] = useState<OurViewState>({
-        width: 1734,
-        height: 1318,
-        latitude: 37.635849802603865,
-        longitude: -35.383059547989724,
-        zoom: 2.415529236018404,
-        bearing: 0,
-        pitch: 0,
-        maxZoom: 20,
-        minZoom: 0,
-        maxPitch: 60,
-        minPitch: 0,
-        position: [0, 0, 0],
-    });
-    const [highlightedHexes, setHighlightedHexes] = useState<string[]>([
-        "81393ffffffffff",
-    ]);
+    const [viewState, setViewState] =
+        useState<OurViewState>(INITIAL_VIEW_STATE);
+    const [isDrawing, setIsDrawing] = useState(false);
+
+    const [highlightedHexes, setHighlightedHexes] = useState<string[]>([]);
+
+    const clickRemoveHex = useCallback(
+        (hexes: string[]) => {
+            if (isDrawing) {
+                return;
+            }
+            setHighlightedHexes((selectedHexes) =>
+                selectedHexes.filter((hex) => !hexes.includes(hex))
+            );
+        },
+        [setHighlightedHexes, isDrawing]
+    );
+
+    const appendHexes = useCallback(
+        (hexes: string[]) => {
+            if (isDrawing) {
+                return;
+            }
+            setHighlightedHexes((highlighted) => [
+                ...new Set([...highlighted, ...hexes]),
+            ]);
+        },
+        [setHighlightedHexes, isDrawing]
+    );
 
     const highlightedHexLayer = useMemo(() => {
         return new H3HexagonLayer<string>({
@@ -47,22 +74,13 @@ function App() {
             data: highlightedHexes,
             wrapLongitude: true,
             onClick: (info: PickingInfo<string>) => {
-                console.log("highlighted", { info });
-                setHighlightedHexes((selectedHexes) =>
-                    [...selectedHexes].filter((hex) => hex !== info.object)
-                );
+                if (!info.object) {
+                    return;
+                }
+                clickRemoveHex([info.object]);
             },
         });
-    }, [highlightedHexes, setHighlightedHexes]);
-
-    const appendHexes = useCallback(
-        (hexes: string[]) => {
-            setHighlightedHexes((highlighted) => [
-                ...new Set([...highlighted, ...hexes]),
-            ]);
-        },
-        [setHighlightedHexes]
-    );
+    }, [highlightedHexes, clickRemoveHex]);
 
     const {
         handleResize: hexHandleResize,
@@ -72,8 +90,6 @@ function App() {
         resolutionFrozen,
         addSelectedHexes: appendHexes,
     });
-
-    const [isDrawing, setIsDrawing] = useState(false);
 
     const [features, setFeatures] = useState<FeatureCollection>({
         type: "FeatureCollection",
@@ -112,6 +128,7 @@ function App() {
                 return;
             }
             const [centerLat, centerLng] = getH3Center([...new_hexes]);
+
             setViewState((prev) => ({
                 ...prev,
                 longitude: centerLng,
@@ -137,10 +154,23 @@ function App() {
     return (
         <div className="root">
             <DeckGL
-                onViewStateChange={({ viewState }) =>
+                initialViewState={INITIAL_VIEW_STATE}
+                onViewStateChange={({ viewState, interactionState }) => {
                     // This is stupid and I'm sure there's a better way to do this. I cba to figure out
-                    setViewState(viewState as unknown as OurViewState)
-                }
+                    const typedVs = viewState as unknown as OurViewState;
+                    if (interactionState.isZooming) {
+                        setViewState((vs) => ({
+                            ...vs,
+                            ...typedVs,
+                            transitionDuration: 0,
+                        }));
+                    } else {
+                        setViewState((vs) => ({
+                            ...vs,
+                            ...typedVs,
+                        }));
+                    }
+                }}
                 controller={{
                     doubleClickZoom: false,
                 }}
@@ -174,12 +204,26 @@ function App() {
                 <FormGroup
                     helperText="Select the H3 cells you want to display."
                     label="Selected H3 Cells"
+                    labelInfo={
+                        <Button
+                            outlined
+                            small
+                            icon="cross"
+                            onClick={() => setHighlightedHexes([])}
+                        >
+                            Clear all
+                        </Button>
+                    }
+                    className="selected-hexes"
                 >
                     <TagInput
                         onChange={handleHexInputChange}
                         placeholder="Separate values with commas..."
                         values={[...highlightedHexes]}
                         className="selected-hexes-input"
+                        tagProps={{
+                            minimal: true,
+                        }}
                     />
                 </FormGroup>
                 <FormGroup>

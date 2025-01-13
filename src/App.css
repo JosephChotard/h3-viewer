@@ -1,21 +1,21 @@
 .root {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
+    position: relative;
+      width: 100vw;
+      height: 100vh;
 }
 
 .overlay {
-  position: absolute;
-  top: 1em;
-  left: 1em;
-  padding: 1em;
-  background-color: aliceblue;
-  border-radius: 5px;
-  box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.2);
-  max-width: 30%;
-  }
-  
-  .draw-overlay {
+    position: absolute;
+      top: 1em;
+      left: 1em;
+      padding: 1em;
+      background-color: aliceblue;
+      border-radius: 5px;
+      box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.2);
+      max-width: 30%;
+    }
+    
+    .draw-overlay {
     position: absolute;
     top: 1em;
     right: 1em;
@@ -23,9 +23,9 @@
     background-color: aliceblue;
     border-radius: 5px;
     box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.2);
-  }
-  
-  .selected-hexes-input {
+}
+
+.selected-hexes-input {
     max-height: 100px;
     overflow-y: auto;
 }

@@ -156,7 +156,6 @@ export const useHex = ({ resolutionFrozen, addSelectedHexes }: UseHexProps) => {
                 wrapLongitude: true,
                 onClick: (info: PickingInfo<string>) => {
                     if (info.object) {
-                        console.log("clicked", { info });
                         addSelectedHexes([info.object]);
                     }
                 }
@@ -176,7 +175,7 @@ export const useHex = ({ resolutionFrozen, addSelectedHexes }: UseHexProps) => {
             const bounds = getVisibleBounds(viewState);
             const hexagons = getHexagons(bounds, resolution);
             setHexagons(hexagons);
-        }, 300),
+        }, 500),
         [setHexagons, setResolution, resolutionFrozen]
     );
 
