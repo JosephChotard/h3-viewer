@@ -6,8 +6,8 @@ import {
     ViewMode,
 } from "@deck.gl-community/editable-layers";
 import DeckGL from "@deck.gl/react";
-import { MapView } from "deck.gl";
-import { useCallback, useEffect, useState } from "react";
+import { H3HexagonLayer, MapView, PickingInfo } from "deck.gl";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Map } from "react-map-gl";
 import "./App.css";
 import { OurViewState, RESOLUTION_TO_ZOOM, useHex } from "./useHex";
@@ -29,14 +29,49 @@ function App() {
         minPitch: 0,
         position: [0, 0, 0],
     });
+    const [highlightedHexes, setHighlightedHexes] = useState<string[]>([
+        "81393ffffffffff",
+    ]);
+
+    const highlightedHexLayer = useMemo(() => {
+        return new H3HexagonLayer<string>({
+            id: "HighlightedH3HexagonLayer",
+            extruded: false,
+            getHexagon: (d: string) => d,
+            getFillColor: [255, 100, 100, 150],
+            getLineColor: [150, 150, 150, 100],
+            getLineWidth: 2,
+            lineWidthUnits: "pixels",
+            elevationScale: 20,
+            pickable: true,
+            data: highlightedHexes,
+            wrapLongitude: true,
+            onClick: (info: PickingInfo<string>) => {
+                console.log("highlighted", { info });
+                setHighlightedHexes((selectedHexes) =>
+                    [...selectedHexes].filter((hex) => hex !== info.object)
+                );
+            },
+        });
+    }, [highlightedHexes, setHighlightedHexes]);
+
+    const appendHexes = useCallback(
+        (hexes: string[]) => {
+            setHighlightedHexes((highlighted) => [
+                ...new Set([...highlighted, ...hexes]),
+            ]);
+        },
+        [setHighlightedHexes]
+    );
 
     const {
         handleResize: hexHandleResize,
-        hexLayer,
-        selectedHexes,
-        setSelectedHexes,
+        hexLayer: backgroundHexLayer,
         resolution,
-    } = useHex({ resolutionFrozen });
+    } = useHex({
+        resolutionFrozen,
+        addSelectedHexes: appendHexes,
+    });
 
     const [isDrawing, setIsDrawing] = useState(false);
 
@@ -63,16 +98,17 @@ function App() {
 
     const handleHexInputChange = useCallback(
         (values: React.ReactNode[]) => {
-            const new_hexes = new Set(
-                values
-                    .filter(isNotNull)
-                    .map((value) => value.toString())
-                    .flatMap(toCells)
-                    .filter(isNotNull)
-            );
-            console.log(new_hexes);
-            setSelectedHexes(new_hexes);
-            if (new_hexes.size === 0) {
+            const new_hexes = [
+                ...new Set(
+                    values
+                        .filter(isNotNull)
+                        .map((value) => value.toString())
+                        .flatMap(toCells)
+                        .filter(isNotNull)
+                ),
+            ];
+            setHighlightedHexes(new_hexes);
+            if (new_hexes.length === 0) {
                 return;
             }
             const [centerLat, centerLng] = getH3Center([...new_hexes]);
@@ -83,7 +119,7 @@ function App() {
                 zoom: RESOLUTION_TO_ZOOM[getMinResolution([...new_hexes])],
             }));
         },
-        [setSelectedHexes, setViewState]
+        [setHighlightedHexes, setViewState]
     );
 
     useEffect(() => {
@@ -110,8 +146,7 @@ function App() {
                 }}
                 viewState={viewState}
                 views={new MapView({ repeat: true })}
-                layers={[hexLayer, drawLayer]}
-                onClick={console.log}
+                layers={[backgroundHexLayer, drawLayer, highlightedHexLayer]}
                 getCursor={(...args) => {
                     try {
                         return drawLayer.getCursor(...args) ?? "default";
@@ -143,7 +178,7 @@ function App() {
                     <TagInput
                         onChange={handleHexInputChange}
                         placeholder="Separate values with commas..."
-                        values={[...selectedHexes]}
+                        values={[...highlightedHexes]}
                         className="selected-hexes-input"
                     />
                 </FormGroup>
