@@ -21,6 +21,12 @@
   justify-content: space-between;
 }
 
+.tooltip {
+  position: absolute;
+  z-index: 1;
+  background-color: rgba(250, 255, 255, 0.8);
+}
+
 
 .draw-overlay {
   position: absolute;

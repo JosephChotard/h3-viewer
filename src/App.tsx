@@ -6,10 +6,10 @@ import {
     FeatureCollection,
     ViewMode,
 } from "@deck.gl-community/editable-layers";
-import DeckGL from "@deck.gl/react";
+import DeckGL, { DeckGLProps } from "@deck.gl/react";
 import { area } from "@turf/area";
 import { H3HexagonLayer, MapView, PickingInfo } from "deck.gl";
-import { compactCells, polygonToCells } from "h3-js";
+import * as h3 from "h3-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Map } from "react-map-gl";
 import "./App.css";
@@ -37,6 +37,24 @@ const INITIAL_VIEW_STATE: OurViewState = {
     position: [0, 0, 0],
 };
 
+const getTooltip: DeckGLProps["getTooltip"] = ({object: hex}: PickingInfo<string>) =>{
+    if (!hex) {
+        return null
+    }
+    const areaM2 = h3.cellArea(hex, h3.UNITS.m2);
+    let area = areaM2;
+    if (areaM2 > 100000) {
+        area = areaM2 / 1_000_000;
+    }
+    return  `\
+      Hex: ${hex}
+      Resolution: ${h3.getResolution(hex)}
+      Area (${areaM2 === area ? "m^2" : "km^2"}): ${new Intl.NumberFormat('en-US', { maximumSignificantDigits: 2 }).format(
+        area,
+      )}
+      `;
+  }
+
 function App() {
     const [resolutionFrozen, setResolutionFrozen] = useState(false);
     const [viewState, setViewState] =
@@ -47,6 +65,10 @@ function App() {
     const [maxShapeResolution, setMaxShapeResolution] = useState(3);
     const [shapeResolution, setShapeResolution] = useState(0);
     const [highlightedHexes, setHighlightedHexes] = useState<string[]>([]);
+    const [hoverInfo, setHoverInfo] = useState<PickingInfo<string>>();
+
+    console.log({hoverInfo})
+
 
     const clickRemoveHex = useCallback(
         (hexes: string[]) => {
@@ -91,8 +113,11 @@ function App() {
                 }
                 clickRemoveHex([info.object]);
             },
+            onHover: (info: PickingInfo<string>) => {
+                setHoverInfo(info);
+            }
         });
-    }, [highlightedHexes, clickRemoveHex]);
+    }, [highlightedHexes, clickRemoveHex, setHoverInfo]);
 
     const {
         handleResize: hexHandleResize,
@@ -140,9 +165,9 @@ function App() {
         if (!coverShape) {
             return;
         }
-        let hexes = polygonToCells(points, shapeRes, true);
+        let hexes = h3.polygonToCells(points, shapeRes, true);
         if (compactShape) {
-            hexes = compactCells(hexes);
+            hexes = h3.compactCells(hexes);
         }
         setHighlightedHexes(hexes);
     }, [
@@ -233,7 +258,7 @@ function App() {
                         return "default";
                     }
                 }}
-                // getTooltip={({ object }: PickingInfo<string>) => object ?? ""}
+                getTooltip={getTooltip}
             >
                 <Map
                     mapStyle="mapbox://styles/mapbox/light-v9"
