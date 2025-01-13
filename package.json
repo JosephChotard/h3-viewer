@@ -14,6 +14,7 @@
   "dependencies": {
     "@blueprintjs/core": "^5.16.2",
     "@deck.gl-community/editable-layers": "^9.0.3",
+    "@turf/area": "^7.2.0",
     "@types/mapbox-gl": "^3.4.1",
     "deck.gl": "^9.0.38",
     "h3-js": "^4.1.0",

@@ -7,13 +7,20 @@ import {
     ViewMode,
 } from "@deck.gl-community/editable-layers";
 import DeckGL from "@deck.gl/react";
+import { area } from "@turf/area";
 import { H3HexagonLayer, MapView, PickingInfo } from "deck.gl";
 import { compactCells, polygonToCells } from "h3-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Map } from "react-map-gl";
 import "./App.css";
 import { OurViewState, RESOLUTION_TO_ZOOM, useHex } from "./useHex";
-import { getH3Center, getMinResolution, isNotNull, toCells } from "./utils";
+import {
+    getH3Center,
+    getMaximumAcceptableResolution,
+    getMinResolution,
+    isNotNull,
+    toCells,
+} from "./utils";
 
 const INITIAL_VIEW_STATE: OurViewState = {
     width: 1734,
@@ -37,7 +44,8 @@ function App() {
     const [isDrawing, setIsDrawing] = useState(false);
     const [coverShape, setCoverShape] = useState(false);
     const [compactShape, setCompactShape] = useState(false);
-
+    const [maxShapeResolution, setMaxShapeResolution] = useState(3);
+    const [shapeResolution, setShapeResolution] = useState(0);
     const [highlightedHexes, setHighlightedHexes] = useState<string[]>([]);
 
     const clickRemoveHex = useCallback(
@@ -118,16 +126,33 @@ function App() {
     });
 
     useEffect(() => {
+        if (!features?.features?.[0]?.geometry) {
+            return;
+        }
+        const geometry = features.features[0].geometry;
+        const pointArea = area(geometry);
+        const maxRes = getMaximumAcceptableResolution(pointArea);
+        setMaxShapeResolution(maxRes);
+        const shapeRes = Math.min(maxRes, shapeResolution);
+        setShapeResolution(shapeRes);
+        const points = geometry.coordinates as number[][];
+
         if (!coverShape) {
             return;
         }
-        const points = features.features[0].geometry.coordinates as number[][];
-        let hexes = polygonToCells(points, resolution, true);
+        let hexes = polygonToCells(points, shapeRes, true);
         if (compactShape) {
             hexes = compactCells(hexes);
         }
         setHighlightedHexes(hexes);
-    }, [features, coverShape, compactShape, resolution]);
+    }, [
+        features,
+        coverShape,
+        compactShape,
+        shapeResolution,
+        maxShapeResolution,
+        setShapeResolution,
+    ]);
 
     const handleHexInputChange = useCallback(
         (values: React.ReactNode[]) => {
@@ -172,6 +197,7 @@ function App() {
             features: [],
         });
         setCoverShape(false);
+        setCompactShape(false);
     }, [setIsDrawing, setFeatures]);
 
     return (
@@ -233,8 +259,9 @@ function App() {
                             small
                             icon="cross"
                             onClick={() => setHighlightedHexes([])}
+                            className="clear-all-button"
                         >
-                            Clear all
+                            Clear all ({highlightedHexes.length})
                         </Button>
                     }
                     className="selected-hexes"
@@ -277,6 +304,15 @@ function App() {
                             >
                                 Cover shape with hexes
                             </Switch>
+                        </FormGroup>
+                        <FormGroup label="H3 Resolution to cover with">
+                            <Slider
+                                min={0}
+                                max={maxShapeResolution}
+                                stepSize={1}
+                                value={shapeResolution}
+                                onChange={setShapeResolution}
+                            />
                         </FormGroup>
                         <FormGroup>
                             <Switch

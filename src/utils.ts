@@ -1,8 +1,10 @@
 import {
     cellToLatLng,
+    getHexagonAreaAvg,
     getResolution,
     isValidCell,
     splitLongToH3Index,
+    UNITS,
 } from "h3-js";
 
 export const isNotNull = <T>(value: T): value is NonNullable<T> => {
@@ -96,3 +98,12 @@ export const getMinResolution = (hexes: string[]) => {
     const resolutions = hexes.map(getResolution);
     return Math.min(...resolutions);
 };
+
+const MAX_PRECISION = 15;
+const MAX_CELLS_PER_AREA = 5_000;
+
+const H3_AREA: number[] = [...Array(MAX_PRECISION).keys()].map((res) => {
+    return MAX_CELLS_PER_AREA * getHexagonAreaAvg(res, UNITS.m2);
+});
+
+export const getMaximumAcceptableResolution = (area: number) => H3_AREA.findIndex((value) => value < area) - 1
