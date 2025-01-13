@@ -37,23 +37,26 @@ const INITIAL_VIEW_STATE: OurViewState = {
     position: [0, 0, 0],
 };
 
-const getTooltip: DeckGLProps["getTooltip"] = ({object: hex}: PickingInfo<string>) =>{
+const getTooltip: DeckGLProps["getTooltip"] = ({
+    object: hex,
+}: PickingInfo<string>) => {
     if (!hex) {
-        return null
+        return null;
     }
     const areaM2 = h3.cellArea(hex, h3.UNITS.m2);
     let area = areaM2;
     if (areaM2 > 100000) {
         area = areaM2 / 1_000_000;
     }
-    return  `\
+    return `\
       Hex: ${hex}
       Resolution: ${h3.getResolution(hex)}
-      Area (${areaM2 === area ? "m^2" : "km^2"}): ${new Intl.NumberFormat('en-US', { maximumSignificantDigits: 2 }).format(
-        area,
-      )}
+      Area (${areaM2 === area ? "m^2" : "km^2"}): ${new Intl.NumberFormat(
+        "en-US",
+        { maximumSignificantDigits: 2 }
+    ).format(area)}
       `;
-  }
+};
 
 function App() {
     const [resolutionFrozen, setResolutionFrozen] = useState(false);
@@ -67,8 +70,7 @@ function App() {
     const [highlightedHexes, setHighlightedHexes] = useState<string[]>([]);
     const [hoverInfo, setHoverInfo] = useState<PickingInfo<string>>();
 
-    console.log({hoverInfo})
-
+    console.log({ hoverInfo });
 
     const clickRemoveHex = useCallback(
         (hexes: string[]) => {
@@ -115,7 +117,7 @@ function App() {
             },
             onHover: (info: PickingInfo<string>) => {
                 setHoverInfo(info);
-            }
+            },
         });
     }, [highlightedHexes, clickRemoveHex, setHoverInfo]);
 
