@@ -1,83 +1,17 @@
-import { FormGroup, Slider, Switch, TagInput } from "@blueprintjs/core";
+import { Button, FormGroup, Slider, Switch, TagInput } from "@blueprintjs/core";
+import {
+    DrawPolygonMode,
+    EditableGeoJsonLayer,
+    FeatureCollection,
+    ViewMode,
+} from "@deck.gl-community/editable-layers";
 import DeckGL from "@deck.gl/react";
 import { MapView } from "deck.gl";
-import {
-    cellToLatLng,
-    getResolution,
-    isValidCell,
-    splitLongToH3Index,
-} from "h3-js";
 import { useCallback, useEffect, useState } from "react";
 import { Map } from "react-map-gl";
 import "./App.css";
 import { OurViewState, RESOLUTION_TO_ZOOM, useHex } from "./useHex";
-import { isNotNull } from "./utils";
-
-const getH3Center = (hexes: string[]) => {
-    const latLngs = hexes.map(cellToLatLng);
-    const lats = latLngs.map(([lat]) => lat);
-    const lngs = latLngs.map(([, lng]) => lng);
-    const centerLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
-    const centerLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
-    return [centerLat, centerLng];
-};
-
-function split64BitNumber(numberStr: string): [number, number] {
-    const bigIntNumber = BigInt(numberStr);
-    const mask32Bits = BigInt(0xffffffff);
-
-    const lower = Number(bigIntNumber & mask32Bits);
-    const upper = Number((bigIntNumber >> BigInt(32)) & mask32Bits);
-
-    return [lower, upper];
-}
-
-function isBigIntString(str: string): boolean {
-    try {
-        BigInt(str);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-function toCells(str: string): (string | undefined)[] | undefined {
-    str = str.trim();
-    if (isValidCell(str)) {
-        return [str];
-    }
-    if (isBigIntString(str)) {
-        const [lower, upper] = split64BitNumber(str);
-        const index = splitLongToH3Index(lower, upper);
-        if (isValidCell(index)) {
-            return [index];
-        }
-    }
-    if (str.includes(",")) {
-        return str.split(",").flatMap(toCells);
-    }
-    if (str.startsWith("[")) {
-        return toCells(str.slice(1));
-    }
-    if (str.endsWith("]")) {
-        return toCells(str.slice(0, -1));
-    }
-    // Check if json
-    try {
-        const parsed = JSON.parse(str);
-        if (Array.isArray(parsed)) {
-            return parsed.flatMap(toCells);
-        }
-    } catch {
-        return undefined;
-    }
-    return undefined;
-}
-
-const getMinResolution = (hexes: string[]) => {
-    const resolutions = hexes.map(getResolution);
-    return Math.min(...resolutions);
-};
+import { getH3Center, getMinResolution, isNotNull, toCells } from "./utils";
 
 function App() {
     const [resolutionFrozen, setResolutionFrozen] = useState(false);
@@ -103,6 +37,29 @@ function App() {
         setSelectedHexes,
         resolution,
     } = useHex({ resolutionFrozen });
+
+    const [isDrawing, setIsDrawing] = useState(false);
+
+    const [features, setFeatures] = useState<FeatureCollection>({
+        type: "FeatureCollection",
+        features: [],
+    });
+    const [selectedFeatureIndexes] = useState([]);
+
+    const drawLayer = new EditableGeoJsonLayer({
+        data: features,
+        mode: isDrawing ? DrawPolygonMode : ViewMode,
+        selectedFeatureIndexes,
+        onEdit: ({ editContext, updatedData, editType }) => {
+            if (editType !== "addFeature") {
+                return;
+            }
+            setFeatures({
+                type: "FeatureCollection",
+                features: [updatedData.features[editContext.featureIndexes[0]]],
+            });
+        },
+    });
 
     const handleHexInputChange = useCallback(
         (values: React.ReactNode[]) => {
@@ -133,6 +90,14 @@ function App() {
         hexHandleResize(viewState);
     }, [viewState, hexHandleResize]);
 
+    const toggleDrawing = useCallback(() => {
+        setIsDrawing((is) => !is);
+        setFeatures({
+            type: "FeatureCollection",
+            features: [],
+        });
+    }, [setIsDrawing, setFeatures]);
+
     return (
         <div className="root">
             <DeckGL
@@ -140,10 +105,20 @@ function App() {
                     // This is stupid and I'm sure there's a better way to do this. I cba to figure out
                     setViewState(viewState as unknown as OurViewState)
                 }
+                controller={{
+                    doubleClickZoom: false,
+                }}
                 viewState={viewState}
-                controller
                 views={new MapView({ repeat: true })}
-                layers={[hexLayer]}
+                layers={[hexLayer, drawLayer]}
+                onClick={console.log}
+                getCursor={(...args) => {
+                    try {
+                        return drawLayer.getCursor(...args) ?? "default";
+                    } catch {
+                        return "default";
+                    }
+                }}
                 // getTooltip={({ object }: PickingInfo<string>) => object ?? ""}
             >
                 <Map
@@ -169,6 +144,7 @@ function App() {
                         onChange={handleHexInputChange}
                         placeholder="Separate values with commas..."
                         values={[...selectedHexes]}
+                        className="selected-hexes-input"
                     />
                 </FormGroup>
                 <FormGroup>
@@ -179,6 +155,15 @@ function App() {
                         Freeze resolution
                     </Switch>
                 </FormGroup>
+            </div>
+            <div className="draw-overlay">
+                <Button
+                    icon="draw"
+                    aria-label="draw"
+                    minimal={true}
+                    active={isDrawing}
+                    onClick={toggleDrawing}
+                />
             </div>
         </div>
     );
