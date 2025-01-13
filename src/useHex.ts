@@ -175,7 +175,7 @@ export const useHex = ({ resolutionFrozen, addSelectedHexes }: UseHexProps) => {
             const bounds = getVisibleBounds(viewState);
             const hexagons = getHexagons(bounds, resolution);
             setHexagons(hexagons);
-        }, 500),
+        }, 200),
         [setHexagons, setResolution, resolutionFrozen]
     );
 

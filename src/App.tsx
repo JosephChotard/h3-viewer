@@ -2,11 +2,13 @@ import { Button, FormGroup, Slider, Switch, TagInput } from "@blueprintjs/core";
 import {
     DrawPolygonMode,
     EditableGeoJsonLayer,
+    Feature,
     FeatureCollection,
     ViewMode,
 } from "@deck.gl-community/editable-layers";
 import DeckGL from "@deck.gl/react";
 import { H3HexagonLayer, MapView, PickingInfo } from "deck.gl";
+import { compactCells, polygonToCells } from "h3-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Map } from "react-map-gl";
 import "./App.css";
@@ -33,6 +35,8 @@ function App() {
     const [viewState, setViewState] =
         useState<OurViewState>(INITIAL_VIEW_STATE);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [coverShape, setCoverShape] = useState(false);
+    const [compactShape, setCompactShape] = useState(false);
 
     const [highlightedHexes, setHighlightedHexes] = useState<string[]>([]);
 
@@ -95,22 +99,35 @@ function App() {
         type: "FeatureCollection",
         features: [],
     });
-    const [selectedFeatureIndexes] = useState([]);
 
     const drawLayer = new EditableGeoJsonLayer({
         data: features,
         mode: isDrawing ? DrawPolygonMode : ViewMode,
-        selectedFeatureIndexes,
+        selectedFeatureIndexes: [],
         onEdit: ({ editContext, updatedData, editType }) => {
             if (editType !== "addFeature") {
                 return;
             }
+            const featureOfInterest: Feature["geoJson"] =
+                updatedData.features[editContext.featureIndexes[0]];
             setFeatures({
                 type: "FeatureCollection",
-                features: [updatedData.features[editContext.featureIndexes[0]]],
+                features: [featureOfInterest],
             });
         },
     });
+
+    useEffect(() => {
+        if (!coverShape) {
+            return;
+        }
+        const points = features.features[0].geometry.coordinates as number[][];
+        let hexes = polygonToCells(points, resolution, true);
+        if (compactShape) {
+            hexes = compactCells(hexes);
+        }
+        setHighlightedHexes(hexes);
+    }, [features, coverShape, compactShape, resolution]);
 
     const handleHexInputChange = useCallback(
         (values: React.ReactNode[]) => {
@@ -143,12 +160,18 @@ function App() {
         hexHandleResize(viewState);
     }, [viewState, hexHandleResize]);
 
+    const handleSetCoverShape = useCallback(() => {
+        setCoverShape((f) => !f);
+        setHighlightedHexes([]);
+    }, []);
+
     const toggleDrawing = useCallback(() => {
         setIsDrawing((is) => !is);
         setFeatures({
             type: "FeatureCollection",
             features: [],
         });
+        setCoverShape(false);
     }, [setIsDrawing, setFeatures]);
 
     return (
@@ -242,7 +265,29 @@ function App() {
                     minimal={true}
                     active={isDrawing}
                     onClick={toggleDrawing}
-                />
+                >
+                    {isDrawing && "Drawing Mode"}
+                </Button>
+                {isDrawing && (
+                    <>
+                        <FormGroup>
+                            <Switch
+                                checked={coverShape}
+                                onChange={handleSetCoverShape}
+                            >
+                                Cover shape with hexes
+                            </Switch>
+                        </FormGroup>
+                        <FormGroup>
+                            <Switch
+                                checked={compactShape}
+                                onChange={() => setCompactShape((c) => !c)}
+                            >
+                                Compact hexes
+                            </Switch>
+                        </FormGroup>
+                    </>
+                )}
             </div>
         </div>
     );
