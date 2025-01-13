@@ -288,7 +288,8 @@ function App() {
                             onClick={() => setHighlightedHexes([])}
                             className="clear-all-button"
                         >
-                            Clear all ({highlightedHexes.length})
+                            {highlightedHexes.length > 0 && (<>Clear all ({highlightedHexes.length})</>)}
+                            
                         </Button>
                     }
                     className="selected-hexes"
