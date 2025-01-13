@@ -1,10 +1,9 @@
 import { H3HexagonLayer } from "@deck.gl/geo-layers";
 import { MapViewState, PickingInfo, WebMercatorViewport } from "deck.gl";
 import { polygonToCells } from "h3-js";
-import { MjolnirEvent } from "mjolnir.js";
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
-import { isNotNull, throttle } from "./utils";
+import { throttle } from "./utils";
 
 export type OurViewState = {
     width: number;
@@ -130,10 +129,10 @@ const getHexagons = (bounds: Bounds, resolution: number) => {
 
 export interface UseHexProps {
     resolutionFrozen: boolean;
+    addSelectedHexes: (hexes: string[]) => void;
 }
 
-export const useHex = ({ resolutionFrozen }: UseHexProps) => {
-    const [selectedHexes, setSelectedHexes] = useState<Set<string>>(new Set());
+export const useHex = ({ resolutionFrozen, addSelectedHexes }: UseHexProps) => {
     const [hexagons, setHexagons] = useState<string[]>([]);
     const [resolution, setResolution] = useState<number>(0);
     const [hexLayer, setHexLayer] = useState<H3HexagonLayer<string> | null>(
@@ -147,7 +146,7 @@ export const useHex = ({ resolutionFrozen }: UseHexProps) => {
                 id: "H3HexagonLayer",
                 extruded: false,
                 getHexagon: (d: string) => d,
-                getFillColor: hex => selectedHexes.has(hex) ? [255, 100, 100, 150] : [0, 0, 0, 1],
+                getFillColor: [0, 0, 0, 1],
                 getLineColor: [150, 150, 150, 100],
                 getLineWidth: 2,
                 lineWidthUnits: "pixels",
@@ -155,15 +154,14 @@ export const useHex = ({ resolutionFrozen }: UseHexProps) => {
                 pickable: true,
                 data: hexagons,
                 wrapLongitude: true,
-                updateTriggers: {
-                    getFillColor: [selectedHexes]
-                },
-                onClick: (info: PickingInfo<string>, event: MjolnirEvent) => {
-                    setSelectedHexes(currentlySelectedHexes => new Set([info.object, ...(event.srcEvent.shiftKey ? currentlySelectedHexes : [])].filter(isNotNull)))
+                onClick: (info: PickingInfo<string>) => {
+                    if (info.object) {
+                        addSelectedHexes([info.object]);
+                    }
                 }
             })
         );
-    }, [selectedHexes, setSelectedHexes, hexagons])
+    }, [addSelectedHexes, hexagons])
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleResize = useCallback(
@@ -177,9 +175,9 @@ export const useHex = ({ resolutionFrozen }: UseHexProps) => {
             const bounds = getVisibleBounds(viewState);
             const hexagons = getHexagons(bounds, resolution);
             setHexagons(hexagons);
-        }, 300),
+        }, 200),
         [setHexagons, setResolution, resolutionFrozen]
     );
 
-    return { handleResize, hexLayer, selectedHexes, setSelectedHexes, resolution };
+    return { handleResize, hexLayer, resolution };
 }

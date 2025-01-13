@@ -12,6 +12,33 @@
   background-color: aliceblue;
   border-radius: 5px;
   box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.2);
-  max-width: 40%;
-  pointer-events: all;
+  max-width: 30%;
+}
+
+.selected-hexes .bp5-label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 1;
+  background-color: rgba(250, 255, 255, 0.8);
+}
+
+
+.draw-overlay {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  padding: 1em;
+  background-color: aliceblue;
+  border-radius: 5px;
+  box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.2);
+}
+
+.selected-hexes-input {
+  max-height: 100px;
+  overflow-y: auto;
 }
